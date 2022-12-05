@@ -36,11 +36,11 @@
  flush_jitter = "10s"
 
  ## Log level, the alternative is [debug, info, trace, error]
- log_level = "info"
+ log_level = "debug"
 
  ## Name of the file to be logged to when using the "file" logtarget.  If set to
  ## the empty string then logs are written to stderr.
- logfile = "log/telemetry.log"
+ logfile = ""
 
  ## the maximum number of days to retain old log files based on the
  ##	timestamp encoded in their filename.  Note that a day is defined as 24
