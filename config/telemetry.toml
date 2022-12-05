@@ -1,0 +1,127 @@
+# Configuration for telegraf agent
+[agent]
+ ## Default data collection interval for all inputs
+ interval = "20s"
+ ## Rounds collection interval to 'interval'
+ ## ie, if interval="10s" then always collect on :00, :10, :20, etc.
+ round_interval = true
+
+ ## Telegraf will send metrics to outputs in batches of at most
+ ## metric_batch_size metrics.
+ ## This controls the size of writes that Telegraf sends to output plugins.
+ metric_batch_size = 1000
+
+ ## Maximum number of unwritten metrics per output.  Increasing this value
+ ## allows for longer periods of output downtime without dropping metrics at the
+ ## cost of higher maximum memory usage.
+ metric_buffer_limit = 10000
+
+ ## Collection jitter is used to jitter the collection by a random amount.
+ ## Each plugin will sleep for a random time within jitter before collecting.
+ ## This can be used to avoid many plugins querying things like sysfs at the
+ ## same time, which can have a measurable effect on the system.
+ collection_jitter = "10s"
+
+ ## Collection offset is used to shift the collection by the given amount.
+ ## This can be be used to avoid many plugins querying constraint devices
+ ## at the same time by manually scheduling them in time.
+ # collection_offset = "0s"
+
+ ## Default flushing interval for all outputs. Maximum flush_interval will be
+ ## flush_interval + flush_jitter
+ flush_interval = "10s"
+ ## Jitter the flush interval by a random amount. This is primarily to avoid
+ ## large write spikes for users running a large number of telegraf instances.
+ ## ie, a jitter of 5s and interval 10s means flushes will happen every 10-15s
+ flush_jitter = "10s"
+
+ ## Log level, the alternative is [debug, info, trace, error]
+ log_level = "info"
+
+ ## Name of the file to be logged to when using the "file" logtarget.  If set to
+ ## the empty string then logs are written to stderr.
+ logfile = "log/telemetry.log"
+
+ ## the maximum number of days to retain old log files based on the
+ ##	timestamp encoded in their filename.  Note that a day is defined as 24
+ ##	hours and may not exactly correspond to calendar days due to daylight
+ ##	savings, leap seconds, etc. The default is not to remove old log files
+ ##	based on age.
+ logfile_rotation_interval = 1
+
+ ## is the maximum size in megabytes of the log file before it gets
+ ## rotated. It defaults to 100 megabytes.
+ logfile_rotation_max_size = 100
+
+ ## MaxArchives is the maximum number of old log files to retain.  The default
+ ## is to retain all old log files (though MaxAge may still cause them to get
+ ## deleted.)
+ logfile_rotation_max_archives = 5
+
+ ## Compress determines if the rotated log files should be compressed
+ ## using gzip. The default is not to perform compression.
+ logfile_rotation_max_compress=false
+
+## Cisco models-driven telemetry (MDT) input plugin for IOS XR, IOS XE and NX-OS platforms
+#[[inputs.cisco_telemetry_mdt]]
+# ## Telemetry transport can be "tcp" or "grpc".  TLS is only supported when
+# ## using the grpc transport.
+# transport = "grpc"
+#
+# ## Address and port to host telemetry listener
+# service_address = ":57000"
+#
+# ## Grpc Maximum Message Size, default is 4MB, increase the size.
+# max_msg_size = 4000000
+#
+# ## Enable TLS; grpc transport only.
+## tls_cert = "/etc/telegraf/cert.pem"
+## tls_key = "/etc/telegraf/key.pem"
+#
+# ## Enable TLS client authentication and define allowed CA certificates; grpc
+# ##  transport only.
+## tls_allowed_cacerts = ["/etc/telegraf/clientca.pem"]
+#
+# ## Additional GRPC connection settings.
+# [inputs.cisco_telemetry_mdt.grpc_enforcement_policy]
+#  ## GRPC permit keepalives without calls, set to true if your clients are
+#  ## sending pings without calls in-flight. This can sometimes happen on IOS-XE
+#  ## devices where the GRPC connection is left open but subscriptions have been
+#  ## removed, and adding subsequent subscriptions does not keep a stable session.
+#  permit_keepalive_without_calls = false
+#
+#  ## GRPC minimum timeout between successive pings, decreasing this value may
+#  ## help if this plugin is closing connections with ENHANCE_YOUR_CALM (too_many_pings).
+#  keepalive_minimum_time = "1s"
+#
+#[[inputs.cisco_telemetry_mdt]]
+# ## Telemetry transport can be "tcp" or "grpc".  TLS is only supported when
+# ## using the grpc transport.
+# transport = "tcp"
+#
+# ## Address and port to host telemetry listener
+# service_address = ":5432"
+
+[[inputs.cpu]]
+ percpu = true
+ totalcpu = true
+
+# Send metrics to file(s)
+[[outputs.file]]
+ ## Files to write to, "stdout" is a specially handled file.
+ files = ["stdout", "C:\\Users\\xinqxion\\Downloads\\test.out"]
+
+ ## The file will be rotated after the time interval specified.  When set
+ ## to 0 no time based rotation is performed.
+ rotation_interval = "24h"
+
+ ## The logfile will be rotated when it becomes larger than the specified
+ ## size.  When set to 0 no size based rotation is performed.
+ rotation_max_size = "100MB"
+
+ ## Maximum number of rotated archives to keep, any older logs are deleted.
+ ## If set to -1, no archives are removed.
+ rotation_max_archives = 5
+
+ ## Data format to output.
+ data_format = "json"
