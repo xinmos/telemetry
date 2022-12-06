@@ -1,8 +1,10 @@
 package cisco_telemetry_mdt
 
 import (
-	"fmt"
 	"strings"
+
+	"telemetry/internal"
+	"telemetry/models"
 )
 
 type row struct {
@@ -24,7 +26,23 @@ func NewCiscoTelemetryMetric(sourceIP string) *metric {
 	}
 }
 
-func (m *metric) AddField() {
+func (m *metric) IsMetric() {
+}
+
+func (m *metric) Copy() models.Metric {
+	m2 := &metric{
+		Rows:      make([]row, len(m.Rows)),
+		Telemetry: make(map[string]any, len(m.Telemetry)),
+		Source:    m.Source,
+	}
+
+	for i, r := range m.Rows {
+		m2.Rows[i] = row{Timestamp: r.Timestamp, Content: r.Content, Keys: r.Keys}
+	}
+
+	m2.Telemetry = internal.DeepCopy(m.Telemetry).(map[string]any)
+
+	return m2
 }
 
 func (m *metric) parseRow(value any) {
@@ -39,12 +57,12 @@ func (m *metric) parseRow(value any) {
 			if _, ok := field["content"]; ok {
 				row.Content = field["content"]
 			} else {
-				fmt.Errorf("no field named rows")
+				log.Errorf("no field named rows")
 			}
 			if _, ok := field["keys"]; ok {
 				row.Keys = field["keys"]
 			} else {
-				fmt.Errorf("no field named keys")
+				log.Errorf("no field named keys")
 			}
 			m.Rows = append(m.Rows, row)
 		}
@@ -103,7 +121,7 @@ func (m *metric) parseFields(v any) map[string]any {
 					delete(s, key)
 					placeInArray = true
 				} else {
-					fmt.Errorf("gbpkv inconsistency, processing repeated field names")
+					log.Errorf("gbpkv inconsistency, processing repeated field names")
 				}
 			}
 			if placeInArray && fieldVal != nil {

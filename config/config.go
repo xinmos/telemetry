@@ -143,7 +143,7 @@ func (c *Config) addOutput(name string, cfgs []map[string]any) error {
 	switch name {
 	case "file":
 		for _, cfg := range cfgs {
-			runOuput := models.NewRunningOutput(file.NewFile(), name)
+			runOuput := models.NewRunningOutput(file.NewFile(), name, c.Agent.MetricBatchSize, c.Agent.MetricBufferLimit)
 			// init config
 			err := runOuput.Output.ParseConfig(cfg)
 			if err != nil {

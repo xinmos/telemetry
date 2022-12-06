@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	cpuUtil "github.com/shirou/gopsutil/v3/cpu"
-	"github.com/sirupsen/logrus"
 
 	"telemetry/models"
 )
@@ -14,17 +13,13 @@ import (
 type CPUStats struct {
 	PerCPU   bool `json:"percpu"`
 	TotalCPU bool `json:"totalcpu"`
-
-	log *logrus.Entry
 }
 
 func (c *CPUStats) AddField() {
 }
 
 func NewCPUStats() *CPUStats {
-	return &CPUStats{
-		log: models.NewLogger("inputs.cpu"),
-	}
+	return &CPUStats{}
 }
 
 func (c *CPUStats) Gather(acc models.Accumulator) error {
@@ -57,14 +52,4 @@ func (c *CPUStats) ParseConfig(cfg map[string]any) error {
 		return fmt.Errorf("[cpu] config error: %v", err)
 	}
 	return nil
-}
-
-func totalCPUTime(t cpuUtil.TimesStat) float64 {
-	total := t.User + t.System + t.Nice + t.Iowait + t.Irq + t.Softirq + t.Steal + t.Idle
-	return total
-}
-
-func activeCPUTime(t cpuUtil.TimesStat) float64 {
-	active := totalCPUTime(t) - t.Idle
-	return active
 }

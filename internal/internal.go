@@ -35,9 +35,9 @@ func SleepContext(ctx context.Context, duration time.Duration) error {
 
 // AlignDuration returns the duration until next aligned interval.
 // If the current time is aligned a 0 duration is returned.
-func AlignDuration(tm time.Time, interval time.Duration) time.Duration {
-	return AlignTime(tm, interval).Sub(tm)
-}
+//func AlignDuration(tm time.Time, interval time.Duration) time.Duration {
+//	return AlignTime(tm, interval).Sub(tm)
+//}
 
 // AlignTime returns the time of the next aligned interval.
 // If the current time is aligned the current time is returned.
@@ -47,4 +47,25 @@ func AlignTime(tm time.Time, interval time.Duration) time.Time {
 		return tm
 	}
 	return truncated.Add(interval)
+}
+
+// DeepCopy returns a deep copy struct if struct is map[string]any or []any
+func DeepCopy(value any) any {
+	if valueMap, ok := value.(map[string]interface{}); ok {
+		newMap := make(map[string]interface{})
+		for k, v := range valueMap {
+			newMap[k] = DeepCopy(v)
+		}
+
+		return newMap
+	} else if valueSlice, ok := value.([]interface{}); ok {
+		newSlice := make([]interface{}, len(valueSlice))
+		for k, v := range valueSlice {
+			newSlice[k] = DeepCopy(v)
+		}
+
+		return newSlice
+	}
+
+	return value
 }

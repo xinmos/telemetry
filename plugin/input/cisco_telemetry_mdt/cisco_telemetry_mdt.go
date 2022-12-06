@@ -28,14 +28,14 @@ type GRPCEnforcementPolicy struct {
 	KeepaliveMinTime            Duration `json:"keepalive_minimum_time"`
 }
 
+var log *logrus.Entry
+
 type CiscoTelemetryMDT struct {
 	// Common configuration
 	Transport         string                `json:"transport"`
 	ServiceAddress    string                `json:"service_address"`
 	MaxMsgSize        int                   `json:"max_msg_size"`
 	EnforcementPolicy GRPCEnforcementPolicy `json:"grpc_enforcement_policy"`
-
-	log *logrus.Entry
 
 	// GRPC TLS settings
 	interTLS.ServerConfig
@@ -52,9 +52,8 @@ type CiscoTelemetryMDT struct {
 }
 
 func NewCiscoTelemetryMDT() *CiscoTelemetryMDT {
-	return &CiscoTelemetryMDT{
-		log: models.NewLogger("inputs.cisco_telemetry_mdt"),
-	}
+	log = models.NewLogger("inputs.cisco_telemetry_mdt")
+	return &CiscoTelemetryMDT{}
 }
 
 func (c *CiscoTelemetryMDT) Start(acc models.Accumulator) error {
@@ -77,7 +76,7 @@ func (c *CiscoTelemetryMDT) Start(acc models.Accumulator) error {
 		var opts []grpc.ServerOption
 		tlsConfig, err := c.ServerConfig.TLSConfig()
 		if err != nil {
-			c.listener.Close()
+			_ = c.listener.Close()
 			return err
 		} else if tlsConfig != nil {
 			opts = append(opts, grpc.Creds(credentials.NewTLS(tlsConfig)))
@@ -102,12 +101,12 @@ func (c *CiscoTelemetryMDT) Start(acc models.Accumulator) error {
 		c.wg.Add(1)
 		go func() {
 			if err := c.grpcServer.Serve(c.listener); err != nil {
-				c.log.Errorf("serving GRPC server failed: %v", err)
+				log.Errorf("serving GRPC server failed: %v", err)
 			}
 			c.wg.Done()
 		}()
 	default:
-		c.listener.Close()
+		_ = c.listener.Close()
 		return fmt.Errorf("invalid Cisco MDT transport: %s", c.Transport)
 	}
 
@@ -132,18 +131,18 @@ func (c *CiscoTelemetryMDT) acceptTCPClients() {
 
 		c.wg.Add(1)
 		go func() {
-			c.log.Infof("Accepted Cisco MDT TCP dialout connection from %s", conn.RemoteAddr())
+			log.Infof("Accepted Cisco MDT TCP dialout connection from %s", conn.RemoteAddr())
 			if err := c.handleTCPClient(conn); err != nil {
-				c.log.Errorf("handle tcp client error: %v", err)
+				log.Errorf("handle tcp client error: %v", err)
 			}
-			c.log.Infof("Closed Cisco MDT TCP dialout connection from %s", conn.RemoteAddr())
+			log.Infof("Closed Cisco MDT TCP dialout connection from %s", conn.RemoteAddr())
 
 			mutex.Lock()
 			delete(clients, conn)
 			mutex.Unlock()
 
 			if err := conn.Close(); err != nil {
-				c.log.Errorf("closing connection failed: %v", err)
+				log.Errorf("closing connection failed: %v", err)
 			}
 			c.wg.Done()
 		}()
@@ -153,7 +152,7 @@ func (c *CiscoTelemetryMDT) acceptTCPClients() {
 	mutex.Lock()
 	for client := range clients {
 		if err := client.Close(); err != nil {
-			c.log.Errorf("Failed to close TCP dialout client: %v", err)
+			log.Errorf("Failed to close TCP dialout client: %v", err)
 		}
 	}
 	mutex.Unlock()
@@ -206,7 +205,7 @@ func (c *CiscoTelemetryMDT) handleTCPClient(conn net.Conn) error {
 func (c *CiscoTelemetryMDT) MdtDialout(stream mdtdialout.GRPCMdtDialout_MdtDialoutServer) error {
 	peerInCtx, peerOK := peer.FromContext(stream.Context())
 	if peerOK {
-		c.log.Infof("Accepted Cisco MDT GRPC dialout connection from %s", peerInCtx.Addr)
+		log.Infof("Accepted Cisco MDT GRPC dialout connection from %s", peerInCtx.Addr)
 	}
 
 	var chunkBuffer bytes.Buffer
@@ -216,13 +215,13 @@ func (c *CiscoTelemetryMDT) MdtDialout(stream mdtdialout.GRPCMdtDialout_MdtDialo
 		packet, err := stream.Recv()
 		if err != nil {
 			if err != io.EOF {
-				c.log.Errorf("GRPC dialout receive error: %v", err)
+				log.Errorf("GRPC dialout receive error: %v", err)
 			}
 			break
 		}
 
 		if len(packet.Data) == 0 && len(packet.Errors) != 0 {
-			c.log.Errorf("GRPC dialout error: %s", packet.Errors)
+			log.Errorf("GRPC dialout error: %s", packet.Errors)
 			break
 		}
 
@@ -231,19 +230,19 @@ func (c *CiscoTelemetryMDT) MdtDialout(stream mdtdialout.GRPCMdtDialout_MdtDialo
 			c.handleTelemetry(packet.Data, sourceIP)
 		} else if int(packet.TotalSize) <= c.MaxMsgSize {
 			if _, err := chunkBuffer.Write(packet.Data); err != nil {
-				c.log.Errorf("writing packet %q failed: %v", packet.Data, err)
+				log.Errorf("writing packet %q failed: %v", packet.Data, err)
 			}
 			if chunkBuffer.Len() >= int(packet.TotalSize) {
 				c.handleTelemetry(chunkBuffer.Bytes(), sourceIP)
 				chunkBuffer.Reset()
 			}
 		} else {
-			c.log.Errorf("dropped too large packet: %dB > %dB", packet.TotalSize, c.MaxMsgSize)
+			log.Errorf("dropped too large packet: %dB > %dB", packet.TotalSize, c.MaxMsgSize)
 		}
 	}
 
 	if peerOK {
-		c.log.Infof("Closed Cisco MDT GRPC dialout connection from %s", peerInCtx.Addr)
+		log.Infof("Closed Cisco MDT GRPC dialout connection from %s", peerInCtx.Addr)
 	}
 
 	return nil
@@ -257,7 +256,7 @@ func (c *CiscoTelemetryMDT) Stop() {
 	}
 	if c.listener != nil {
 		//nolint:errcheck,revive // we cannot do anything if the closing fails
-		c.listener.Close()
+		_ = c.listener.Close()
 	}
 	c.wg.Wait()
 }
@@ -270,20 +269,20 @@ func (c *CiscoTelemetryMDT) handleTelemetry(data []byte, sourceIP string) {
 	msg := &telemetry_bis.Telemetry{}
 	err := proto.Unmarshal(data, msg)
 	if err != nil {
-		c.log.Errorf("failed to decode: %v", err)
+		log.Errorf("failed to decode: %v", err)
 		return
 	}
 
 	m := NewCiscoTelemetryMetric(sourceIP)
 	gbpkv, err := json.Marshal(msg)
 	if err != nil {
-		c.log.Errorf("Gpbkv Parse Failure")
+		log.Errorf("Gpbkv Parse Failure")
 	}
 
 	var v any
 	err = json.Unmarshal(gbpkv, &v)
 	if err != nil {
-		c.log.Infoln("unmarshal json err: ", err)
+		log.Infoln("unmarshal json err: ", err)
 	}
 
 	telemetryData := v.(map[string]any)
