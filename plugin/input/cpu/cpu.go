@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	cpuUtil "github.com/shirou/gopsutil/v3/cpu"
+	"github.com/sirupsen/logrus"
 
 	"telemetry/models"
 )
@@ -13,13 +14,17 @@ import (
 type CPUStats struct {
 	PerCPU   bool `json:"percpu"`
 	TotalCPU bool `json:"totalcpu"`
+
+	log *logrus.Entry
 }
 
 func (c *CPUStats) AddField() {
 }
 
 func NewCPUStats() *CPUStats {
-	return &CPUStats{}
+	return &CPUStats{
+		log: models.NewLogger("inputs.cpu"),
+	}
 }
 
 func (c *CPUStats) Gather(acc models.Accumulator) error {
