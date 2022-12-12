@@ -18,7 +18,7 @@ func runApp(m App) error {
 			config: c.String("config"),
 		}
 		if g.config == "" {
-			g.config = "telemetry.toml"
+			g.config = "config/telemetry.toml"
 		}
 
 		m.Init(g)
