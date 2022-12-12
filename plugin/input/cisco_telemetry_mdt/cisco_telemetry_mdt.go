@@ -19,13 +19,14 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/proto"
 
+	"telemetry/internal"
 	"telemetry/models"
 	interTLS "telemetry/plugin/common/tls"
 )
 
 type GRPCEnforcementPolicy struct {
-	PermitKeepaliveWithoutCalls bool     `json:"permit_keepalive_without_calls"`
-	KeepaliveMinTime            Duration `json:"keepalive_minimum_time"`
+	PermitKeepaliveWithoutCalls bool              `json:"permit_keepalive_without_calls"`
+	KeepaliveMinTime            internal.Duration `json:"keepalive_minimum_time"`
 }
 
 type CiscoTelemetryMDT struct {

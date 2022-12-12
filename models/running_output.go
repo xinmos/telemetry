@@ -45,6 +45,7 @@ func NewRunningOutput(output Output, name string, batchSize, bufferLimit int) *R
 		batchSize = DefaultMetricBatchSize
 	}
 
+	logName := "running_output." + name
 	ro := &RunningOutput{
 		buffer:            NewBuffer(bufferLimit),
 		BatchReady:        make(chan time.Time, 1),
@@ -53,7 +54,7 @@ func NewRunningOutput(output Output, name string, batchSize, bufferLimit int) *R
 		MetricBatchSize:   batchSize,
 		Name:              name,
 
-		log: NewLogger("running_output"),
+		log: NewLogger(logName),
 	}
 
 	return ro
