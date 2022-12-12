@@ -1,9 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"path"
-	"runtime"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -95,8 +97,15 @@ type AgentConfig struct {
 
 func NewConfig(filepath string) *Config {
 	var cfg *Config
-	_, filename, _, _ := runtime.Caller(0)
-	filePath := path.Join(path.Dir(filename), filepath)
+	var filePath string
+
+	// Option 1: (Recommended)
+	if !strings.HasPrefix(filepath, "/") {
+		filename, _ := os.Getwd()
+		filePath = path.Join(filename, filepath)
+	} else {
+		filePath = filepath
+	}
 
 	_, err := toml.DecodeFile(filePath, &cfg)
 	if err != nil {
@@ -106,68 +115,99 @@ func NewConfig(filepath string) *Config {
 	return cfg
 }
 
-func (c *Config) addInput(input models.Input, name string, cfgs any) error {
-	for _, cfg := range cfgs.([]map[string]any) {
-		runInput := models.RunningInput{
-			Input: input,
-			Name:  name,
-		}
-		// init config
-		err := runInput.Input.ParseConfig(cfg)
-		if err != nil {
-			return err
-		}
-		c.RunningInputs = append(c.RunningInputs, &runInput)
+func (c *Config) addInput(name string, cfgs any) error {
+	if _, ok := cfgs.([]map[string]any); !ok {
+		return fmt.Errorf("inputs.%s config error", name)
 	}
+	configs := cfgs.([]map[string]any)
+
+	switch name {
+	case "cisco_telemetry_mdt":
+		for _, cfg := range configs {
+			runInput := models.RunningInput{
+				Input: cisco_telemetry_mdt.NewCiscoTelemetryMDT(),
+				Name:  name,
+			}
+			// init config
+			err := runInput.Input.ParseConfig(cfg)
+			if err != nil {
+				return err
+			}
+			c.RunningInputs = append(c.RunningInputs, &runInput)
+		}
+	case "cpu":
+		for _, cfg := range configs {
+			runInput := models.RunningInput{
+				Input: cpu.NewCPUStats(),
+				Name:  name,
+			}
+			// init config
+			err := runInput.Input.ParseConfig(cfg)
+			if err != nil {
+				return err
+			}
+			c.RunningInputs = append(c.RunningInputs, &runInput)
+		}
+	}
+
 	return nil
 }
 
-func (c *Config) addOutput(output models.Output, name string, cfgs any) error {
-	serializer, _ := json.NewSerializer(1*time.Millisecond, "2006-01-02 15:04:05.000", "")
-	for _, cfg := range cfgs.([]map[string]any) {
-		runOuput := models.NewRunningOutput(output, name, c.Agent.MetricBatchSize, c.Agent.MetricBufferLimit)
-		// init config
-		err := runOuput.Output.ParseConfig(cfg)
-		if err != nil {
-			return err
-		}
-
-		if ro, ok := runOuput.Output.(serializers.SerializerOutput); ok {
-			ro.SetSerializer(serializer)
-		}
-		c.RunningOutputs = append(c.RunningOutputs, runOuput)
+func (c *Config) addOutput(name string, cfgs any) error {
+	if _, ok := cfgs.([]map[string]any); !ok {
+		return fmt.Errorf("outputs.%s config error", name)
 	}
+	configs := cfgs.([]map[string]any)
+	serializer, _ := json.NewSerializer(1*time.Millisecond, "2006-01-02 15:04:05.000", "")
+
+	switch name {
+	case "file":
+		for _, cfg := range configs {
+			f := file.NewFile()
+			runOuput := models.NewRunningOutput(f, name, c.Agent.MetricBatchSize, c.Agent.MetricBufferLimit)
+			// init config
+			err := runOuput.Output.ParseConfig(cfg)
+			if err != nil {
+				return err
+			}
+
+			if ro, ok := runOuput.Output.(serializers.SerializerOutput); ok {
+				ro.SetSerializer(serializer)
+			}
+			c.RunningOutputs = append(c.RunningOutputs, runOuput)
+		}
+	case "kafka":
+		for _, cfg := range configs {
+			k := kafka.NewKafka()
+			runOuput := models.NewRunningOutput(k, name, c.Agent.MetricBatchSize, c.Agent.MetricBufferLimit)
+			// init config
+			err := runOuput.Output.ParseConfig(cfg)
+			if err != nil {
+				return err
+			}
+
+			if ro, ok := runOuput.Output.(serializers.SerializerOutput); ok {
+				ro.SetSerializer(serializer)
+			}
+			c.RunningOutputs = append(c.RunningOutputs, runOuput)
+		}
+	}
+
 	return nil
 }
 
 func (c *Config) LoadAll() error {
 	for input, inputCfg := range c.Inputs {
-		switch input {
-		case "cisco_telemetry_mdt":
-			err := c.addInput(cisco_telemetry_mdt.NewCiscoTelemetryMDT(), input, inputCfg)
-			if err != nil {
-				return err
-			}
-		case "cpu":
-			err := c.addInput(cpu.NewCPUStats(), input, inputCfg)
-			if err != nil {
-				return err
-			}
+		err := c.addInput(input, inputCfg)
+		if err != nil {
+			return err
 		}
 	}
 
 	for output, outputCfg := range c.Outputs {
-		switch output {
-		case "file":
-			err := c.addOutput(file.NewFile(), output, outputCfg)
-			if err != nil {
-				return err
-			}
-		case "kafka":
-			err := c.addOutput(kafka.NewKafka(), output, outputCfg)
-			if err != nil {
-				return err
-			}
+		err := c.addOutput(output, outputCfg)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
