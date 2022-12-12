@@ -1,5 +1,8 @@
 package models
 
 type Metric interface {
-	AddField()
+	IsMetric()
+
+	// Copy returns a deep copy of the Metric.
+	Copy() Metric
 }

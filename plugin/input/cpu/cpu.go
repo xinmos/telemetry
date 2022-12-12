@@ -58,13 +58,3 @@ func (c *CPUStats) ParseConfig(cfg map[string]any) error {
 	}
 	return nil
 }
-
-func totalCPUTime(t cpuUtil.TimesStat) float64 {
-	total := t.User + t.System + t.Nice + t.Iowait + t.Irq + t.Softirq + t.Steal + t.Idle
-	return total
-}
-
-func activeCPUTime(t cpuUtil.TimesStat) float64 {
-	active := totalCPUTime(t) - t.Idle
-	return active
-}

@@ -48,9 +48,13 @@ func setLogLevel(level string) {
 func InitLogger(filename string, maxSize, maxBackup, maxAge int, logLevel string, compress bool) {
 	setLogLevel(logLevel)
 
-	stdWriter := os.Stdout
-	fileWriter := getFileRotation(filename, maxSize, maxBackup, maxAge, compress)
-	logrus.SetOutput(io.MultiWriter(stdWriter, fileWriter))
+	if filename == "" {
+		writer := os.Stdout
+		logrus.SetOutput(io.Writer(writer))
+	} else {
+		writer := getFileRotation(filename, maxSize, maxBackup, maxAge, compress)
+		logrus.SetOutput(io.Writer(writer))
+	}
 
 	logrus.SetFormatter(&nested.Formatter{
 		HideKeys:        true,

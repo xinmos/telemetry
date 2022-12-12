@@ -1,7 +1,6 @@
 package models
 
 import (
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,10 +37,15 @@ type RunningOutput struct {
 	aggMutex sync.Mutex
 }
 
-func NewRunningOutput(output Output, name string) *RunningOutput {
-	bufferLimit := DefaultMetricBufferLimit
-	batchSize := DefaultMetricBatchSize
+func NewRunningOutput(output Output, name string, batchSize, bufferLimit int) *RunningOutput {
+	if bufferLimit == 0 {
+		bufferLimit = DefaultMetricBufferLimit
+	}
+	if batchSize == 0 {
+		batchSize = DefaultMetricBatchSize
+	}
 
+	logName := "running_output." + name
 	ro := &RunningOutput{
 		buffer:            NewBuffer(bufferLimit),
 		BatchReady:        make(chan time.Time, 1),
@@ -50,7 +54,7 @@ func NewRunningOutput(output Output, name string) *RunningOutput {
 		MetricBatchSize:   batchSize,
 		Name:              name,
 
-		log: NewLogger("running_output"),
+		log: NewLogger(logName),
 	}
 
 	return ro
@@ -69,9 +73,16 @@ func (r *RunningOutput) Init() error {
 func (r *RunningOutput) AddMetric(metric Metric) {
 	r.log.Debugf("get output: %v", metric)
 
-	err := r.Output.Write([]Metric{metric})
-	if err != nil {
-		log.Printf("write to %s fail: %v", r.Name, err)
+	dropped := r.buffer.Add(metric)
+	atomic.AddInt64(&r.droppedMetrics, int64(dropped))
+
+	count := atomic.AddInt64(&r.newMetricsCount, 1)
+	if count == int64(r.MetricBatchSize) {
+		atomic.StoreInt64(&r.newMetricsCount, 0)
+		select {
+		case r.BatchReady <- time.Now():
+		default:
+		}
 	}
 }
 

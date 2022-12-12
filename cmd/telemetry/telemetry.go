@@ -3,15 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/coreos/go-systemd/daemon"
-	"github.com/kardianos/service"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
-	"telemetry/config"
 
+	"github.com/coreos/go-systemd/daemon"
 	"telemetry/agent"
+	"telemetry/config"
 	"telemetry/models"
 )
 
@@ -95,34 +94,4 @@ func (t *Telemetry) runAgent(ctx context.Context) error {
 	ag := agent.NewAgent(cfg)
 
 	return ag.Run(ctx)
-}
-
-type program struct {
-	*Telemetry
-}
-
-func (p *program) Start(s service.Service) error {
-	go func() {
-		stop = make(chan struct{})
-		err := p.reloadLoop()
-		if err != nil {
-			fmt.Printf("ERROR: %v\n", err)
-		}
-		close(stop)
-	}()
-	return nil
-}
-
-func (p *program) Stop(s service.Service) error {
-	var empty struct{}
-	stop <- empty
-	<-stop
-	return nil
-}
-
-func (p *program) run(errChan chan error) {
-	stop = make(chan struct{})
-	err := p.reloadLoop()
-	errChan <- err
-	close(stop)
 }

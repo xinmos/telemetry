@@ -309,8 +309,7 @@ func (a *Agent) runOutputs(unit *outputUnit) {
 			if i == len(a.Config.RunningOutputs)-1 {
 				output.AddMetric(metric)
 			} else {
-				//TODO deep copy
-				output.AddMetric(metric)
+				output.AddMetric(metric.Copy())
 			}
 		}
 	}

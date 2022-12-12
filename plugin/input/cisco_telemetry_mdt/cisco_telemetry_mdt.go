@@ -19,13 +19,14 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/protobuf/proto"
 
+	"telemetry/internal"
 	"telemetry/models"
 	interTLS "telemetry/plugin/common/tls"
 )
 
 type GRPCEnforcementPolicy struct {
-	PermitKeepaliveWithoutCalls bool     `json:"permit_keepalive_without_calls"`
-	KeepaliveMinTime            Duration `json:"keepalive_minimum_time"`
+	PermitKeepaliveWithoutCalls bool              `json:"permit_keepalive_without_calls"`
+	KeepaliveMinTime            internal.Duration `json:"keepalive_minimum_time"`
 }
 
 type CiscoTelemetryMDT struct {
@@ -77,7 +78,7 @@ func (c *CiscoTelemetryMDT) Start(acc models.Accumulator) error {
 		var opts []grpc.ServerOption
 		tlsConfig, err := c.ServerConfig.TLSConfig()
 		if err != nil {
-			c.listener.Close()
+			_ = c.listener.Close()
 			return err
 		} else if tlsConfig != nil {
 			opts = append(opts, grpc.Creds(credentials.NewTLS(tlsConfig)))
@@ -107,7 +108,7 @@ func (c *CiscoTelemetryMDT) Start(acc models.Accumulator) error {
 			c.wg.Done()
 		}()
 	default:
-		c.listener.Close()
+		_ = c.listener.Close()
 		return fmt.Errorf("invalid Cisco MDT transport: %s", c.Transport)
 	}
 
@@ -257,7 +258,7 @@ func (c *CiscoTelemetryMDT) Stop() {
 	}
 	if c.listener != nil {
 		//nolint:errcheck,revive // we cannot do anything if the closing fails
-		c.listener.Close()
+		_ = c.listener.Close()
 	}
 	c.wg.Wait()
 }
@@ -291,7 +292,10 @@ func (c *CiscoTelemetryMDT) handleTelemetry(data []byte, sourceIP string) {
 		if k != "data_gpbkv" {
 			m.parseTelemetry(k, v)
 		} else {
-			m.parseRow(v)
+			err = m.parseRow(v)
+			if err != nil {
+				c.log.Errorf("parse row data error")
+			}
 		}
 	}
 
