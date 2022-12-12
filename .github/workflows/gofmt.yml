@@ -13,15 +13,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
           go-version: 1.19
+          
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          # Full git history is needed to get a proper list of changed files within `super-linter`
+          fetch-depth: 0
 
-      - name: Check out code
-        uses: actions/checkout@v1
-
-      - name: Lint Go Code
-        run: |
-          export PATH=$PATH:$(go env GOPATH)/bin # temporary fix. See https://github.com/actions/setup-go/issues/14
-          go get -u golang.org/x/lint/golint
-          make lint
+      - name: Lint Code Base
+        uses: github/super-linter@v4.9.2
+        env:
+          VALIDATE_ALL_CODEBASE: false
+          DEFAULT_BRANCH: master
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LINTER_RULES_PATH: '.'
+          MARKDOWN_CONFIG_FILE: .markdownlint.yml
+          VALIDATE_MARKDOWN: true
+          VALIDATE_BASH: true
